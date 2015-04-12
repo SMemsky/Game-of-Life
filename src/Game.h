@@ -2,14 +2,15 @@
 
 #include <SFML/Graphics.hpp>
 
+#include "Map.h"
+
 class Game
 {
 public:
-	Game();
+	Game(int x, int y, int framerate);
 	~Game();
 
 	void Start();
-
 
 private:
 
@@ -20,8 +21,6 @@ private:
 	void EventUpdate(float deltaTime);
 	void HandleClick(int x, int y);
 	void LogicUpdate(float deltaTime);
-	int CountNeighbors(int x, int y);
-	bool GetOrganism(int x, int y);
 	void Draw(float deltaTime);
 	void DrawGrid();
 
@@ -31,8 +30,10 @@ private:
 	bool paused;
 	bool grid;
 
+	const int m_Framerate;
+
 	const int mapSizeX;
 	const int mapSizeY;
 
-	bool** map;
+	Map* m_Map;
 };

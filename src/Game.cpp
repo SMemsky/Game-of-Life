@@ -5,31 +5,22 @@ using std::endl;
 
 #include "Game.h"
 
-Game::Game() :
+Game::Game(int x, int y, int framerate) :
 	window(),
 	exiting(false),
 	paused(true),
 	grid(true),
-	mapSizeX(25),
-	mapSizeY(25)
-
+	m_Framerate(framerate),
+	mapSizeX(x),
+	mapSizeY(y),
+	m_Map(nullptr)
 {
-	map = new bool*[mapSizeX];
-
-	for (size_t i = 0; i < mapSizeX; ++i)
-	{
-		map[i] = new bool[mapSizeY];
-	}
+	m_Map = new Map(x, y);
 }
 
 Game::~Game()
 {
-	for (size_t i = 0; i < mapSizeX; ++i)
-	{
-		delete [] map[i];
-	}
-
-	delete [] map;
+	
 }
 
 void Game::Start()
@@ -43,7 +34,10 @@ void Game::Start()
 	{
 		sf::Time deltaTime = deltaTimer.restart();
 		EventUpdate(deltaTime.asSeconds());
-		if (!paused){LogicUpdate(deltaTime.asSeconds());}
+		if (!paused)
+		{
+			LogicUpdate(deltaTime.asSeconds());
+		}
 		Draw(deltaTime.asSeconds());
 	}
 
@@ -52,8 +46,8 @@ void Game::Start()
 
 void Game::InitWindow()
 {
-	window.create(sf::VideoMode(1024, 768), "Life2");
-	window.setFramerateLimit(10);
+	window.create(sf::VideoMode(1000, 1000), "Life2");
+	window.setFramerateLimit(m_Framerate);
 }
 
 void Game::InitGL()
@@ -68,11 +62,43 @@ void Game::InitGL()
 
 void Game::CleanMap()
 {
+	bool numb[3] = {false, true, true};
+	int counterX = 0;
+	int counterY = 0;
 	for (int x = 0; x < mapSizeX; ++x)
 	{
-		for (int y = 0; y < mapSizeY; ++y)
+		counterY = 0;
+		if (counterX == 0)
 		{
-			map[x][y] = false;
+			for (int y = 0; y < mapSizeY; ++y)
+			{
+				m_Map->Set(x, y, false);
+			}
+			counterX++;
+		}
+		else
+		{
+			for (int y = 0; y < mapSizeY; ++y)
+			{
+				m_Map->Set(x, y, numb[counterY]);
+				if (counterY == 2)
+				{
+					counterY = 0;
+				}
+				else
+				{
+					counterY++;
+				}
+			}
+
+			if (counterX == 2)
+			{
+				counterX = 0;
+			}
+			else
+			{
+				counterX++;
+			}
 		}
 	}
 }
@@ -109,6 +135,10 @@ void Game::EventUpdate(float deltaTime)
 			{
 				exiting = true;
 			}
+			if (event.key.code == sf::Keyboard::R)
+			{
+				CleanMap();
+			}
 		}
 		if (event.type == sf::Event::MouseButtonPressed)
 		{
@@ -126,79 +156,12 @@ void Game::HandleClick(int x, int y)
 	int tmpX = static_cast<int>(static_cast<float>(x) / (static_cast<float>(window.getSize().x / static_cast<float>(mapSizeX))));
 	int tmpY = static_cast<int>(static_cast<float>(y) / (static_cast<float>(window.getSize().y / static_cast<float>(mapSizeY))));
 	
-	map[tmpX][tmpY] = !map[tmpX][tmpY];
+	m_Map->Set(tmpX, tmpY, !m_Map->Get(tmpX, tmpY));
 }
 
 void Game::LogicUpdate(float deltaTime)
 {
-	bool tmp[mapSizeX][mapSizeY];
-
-	for (int x = 0; x < mapSizeX; ++x)
-	{
-		for (int y = 0; y < mapSizeY; ++y)
-		{
-			int neighbors = CountNeighbors(x, y);
-			if (map[x][y])
-			{
-				if (neighbors == 2 || neighbors == 3)
-				{
-					tmp[x][y] = true;
-				}
-				else
-				{
-					tmp[x][y] = false;
-				}
-			}
-			else
-			{
-				if (neighbors == 3)
-				{
-					tmp[x][y] = true;
-				}
-				else
-				{
-					tmp[x][y] = false;
-				}
-			}
-		}
-	}
-
-	for (int x = 0; x < mapSizeX; ++x)
-	{
-		for (int y = 0; y < mapSizeY; ++y)
-		{
-			map[x][y] = tmp[x][y];
-		}
-	}
-}
-
-int Game::CountNeighbors(int x, int y)
-{
-	int count = 0;
-	if (GetOrganism(x, y + 1)){count++;} //Top
-	if (GetOrganism(x, y - 1)){count++;} //Down
-	if (GetOrganism(x + 1, y)){count++;} //Right
-	if (GetOrganism(x - 1, y)){count++;} //Left
-
-	if (GetOrganism(x + 1, y + 1)){count++;} //Top right
-	if (GetOrganism(x - 1, y + 1)){count++;} //Top left
-	if (GetOrganism(x + 1, y - 1)){count++;} //Down right
-	if (GetOrganism(x - 1, y - 1)){count++;} //Down left
-
-	return count;
-}
-
-bool Game::GetOrganism(int x, int y)
-{
-	int tx = x;
-	int ty = y;
-
-	while (tx > (mapSizeX - 1)){tx -= mapSizeX;}
-	while (tx < 0){tx += mapSizeX;}
-	while (ty > (mapSizeY - 1)){ty -= mapSizeY;}
-	while (ty < 0){ty += mapSizeY;}
-
-	return map[tx][ty];
+	m_Map->Update();
 }
 
 void Game::Draw(float deltaTime)
@@ -214,7 +177,7 @@ void Game::Draw(float deltaTime)
 	{
 		for (int y =0; y < mapSizeY; ++y)
 		{
-			if (map[x][y])
+			if (m_Map->Get(x, y))
 			{
 				glVertex2f(x * dotSizeX, y * dotSizeY);
 				glVertex2f(x * dotSizeX + dotSizeX, y * dotSizeY);
