@@ -11,12 +11,12 @@ public:
 
 	void run();
 private:
-	void initWindow();
+	void initWindow(unsigned windowWidth, unsigned windowHeight);
 	void initGL();
-	void cleanMap();
+	void clearMap();
 
 	void eventUpdate(float deltaTime);
-	void handleClick(int x, int y);
+	void handleClick(int mouseX, int mouseY);
 	void logicUpdate(float deltaTime);
 	void draw(float deltaTime);
 	void drawGrid();
@@ -25,8 +25,8 @@ private:
 
 	static const unsigned framerate;
 private:
-	const std::size_t mapSizeX;
-	const std::size_t mapSizeY;
+	const std::size_t columns;
+	const std::size_t rows;
 
 	sf::Window window;
 

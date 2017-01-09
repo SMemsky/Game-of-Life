@@ -1,23 +1,26 @@
 #include "Game.h"
 
+#include <iostream>
+
 #include <SFML/OpenGL.hpp>
 #include <SFML/Window/Event.hpp>
 
 const std::string Game::applicationName = "Conway's Game of Life";
-const unsigned Game::framerate = 600;
+const unsigned Game::framerate = 60;
 
 Game::Game(std::vector<std::string> const& arguments) :
-	mapSizeX(32),
-	mapSizeY(32),
+	columns(64),
+	rows(64),
 	window(),
-	map(mapSizeX, mapSizeY),
+	map(columns, rows),
 	exiting(false),
 	paused(true),
 	grid(true)
 {
-	initWindow();
+	initWindow(640, 640);
 	initGL();
-	cleanMap();
+
+	clearMap();
 }
 
 void Game::run()
@@ -37,33 +40,36 @@ void Game::run()
 	window.close();
 }
 
-void Game::initWindow()
+void Game::initWindow(unsigned windowWidth, unsigned windowHeight)
 {
-	window.create(sf::VideoMode(1000, 1000), Game::applicationName);
+	window.create(sf::VideoMode(windowWidth, windowHeight),
+		Game::applicationName);
 	window.setFramerateLimit(framerate);
 }
 
 void Game::initGL()
 {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0, window.getSize().x, window.getSize().y, 0, -1, 1);
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 }
 
-void Game::cleanMap()
+void Game::clearMap()
 {
 	Map::CellState numb[3] = {Map::Empty, Map::Set, Map::Set};
 	int counterX = 0;
 	int counterY = 0;
-	for (int x = 0; x < mapSizeX; ++x)
+	for (int x = 0; x < columns; ++x)
 	{
 		counterY = 0;
 		if (counterX == 0)
 		{
-			for (int y = 0; y < mapSizeY; ++y)
+			for (int y = 0; y < rows; ++y)
 			{
 				map.set(x, y, Map::Empty);
 			}
@@ -71,7 +77,7 @@ void Game::cleanMap()
 		}
 		else
 		{
-			for (int y = 0; y < mapSizeY; ++y)
+			for (int y = 0; y < rows; ++y)
 			{
 				map.set(x, y, numb[counterY]);
 				if (counterY == 2)
@@ -130,7 +136,7 @@ void Game::eventUpdate(float deltaTime)
 			}
 			else if (event.key.code == sf::Keyboard::R)
 			{
-				cleanMap();
+				clearMap();
 			}
 		}
 		else if (event.type == sf::Event::MouseButtonPressed)
@@ -143,13 +149,22 @@ void Game::eventUpdate(float deltaTime)
 	}
 }
 
-void Game::handleClick(int x, int y)
+void Game::handleClick(int mouseX, int mouseY)
 {
-	int tmpX = static_cast<int>(static_cast<float>(x) / (static_cast<float>(window.getSize().x / static_cast<float>(mapSizeX))));
-	int tmpY = static_cast<int>(static_cast<float>(y) / (static_cast<float>(window.getSize().y / static_cast<float>(mapSizeY))));
+	if (mouseX < 0 ||
+		mouseY < 0)
+	{
+		return;
+	}
+
+	const float columnWidth = static_cast<float>(window.getSize().x) / columns;
+	const float rowHeight = static_cast<float>(window.getSize().y) / rows;
+
+	const unsigned cellX = mouseX / columnWidth;
+	const unsigned cellY = mouseY / rowHeight;
 	
-	map.set(tmpX, tmpY,
-		(map.get(tmpX, tmpY) == Map::Set) ? Map::Empty : Map::Set);
+	map.set(cellX, cellY,
+		(map.get(cellX, cellY) == Map::Set) ? Map::Empty : Map::Set);
 }
 
 void Game::logicUpdate(float deltaTime)
@@ -159,23 +174,28 @@ void Game::logicUpdate(float deltaTime)
 
 void Game::draw(float deltaTime)
 {
-	const float dotSizeX = static_cast<float>(window.getSize().x) / static_cast<float>(mapSizeX);
-	const float dotSizeY = static_cast<float>(window.getSize().y) / static_cast<float>(mapSizeY);
+	const float columnWidth = static_cast<float>(window.getSize().x) / columns;
+	const float rowHeight = static_cast<float>(window.getSize().y) / rows;
 
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glBegin(GL_QUADS);
-	glColor3f(0.0f, 0.0f, 0.0f);
-	for (int x = 0; x < mapSizeX; ++x)
 	{
-		for (int y =0; y < mapSizeY; ++y)
+		glColor3f(0.0f, 0.0f, 0.0f);
+		for (unsigned column = 0; column < columns; ++column)
 		{
-			if (map.get(x, y))
+			for (unsigned row = 0; row < rows; ++row)
 			{
-				glVertex2f(x * dotSizeX, y * dotSizeY);
-				glVertex2f(x * dotSizeX + dotSizeX, y * dotSizeY);
-				glVertex2f(x * dotSizeX + dotSizeX, y * dotSizeY + dotSizeY);
-				glVertex2f(x * dotSizeX, y * dotSizeY + dotSizeY);
+				if (map.get(column, row) == Map::Set)
+				{
+					glVertex2f(column * columnWidth, row * rowHeight);
+					glVertex2f(column * columnWidth + columnWidth,
+						row * rowHeight);
+					glVertex2f(column * columnWidth + columnWidth,
+						row * rowHeight + rowHeight);
+					glVertex2f(column * columnWidth,
+						row * rowHeight + rowHeight);
+				}
 			}
 		}
 	}
@@ -191,20 +211,22 @@ void Game::draw(float deltaTime)
 
 void Game::drawGrid()
 {
-	const float dotSizeX = static_cast<float>(window.getSize().x) / static_cast<float>(mapSizeX);
-	const float dotSizeY = static_cast<float>(window.getSize().y) / static_cast<float>(mapSizeY);
+	const float columnWidth = static_cast<float>(window.getSize().x) / columns;
+	const float rowHeight = static_cast<float>(window.getSize().y) / rows;
 
 	glBegin(GL_LINES);
-	glColor3f(0.35f, 0.32f, 0.32f);
-	for (int x = 0; x < mapSizeX; ++x)
 	{
-		glVertex2f(x * dotSizeX, 0);
-		glVertex2f(x * dotSizeX, mapSizeY * dotSizeY);
-	}
-	for (int y = 0; y < mapSizeY; ++y)
-	{
-		glVertex2f(0, y * dotSizeY);
-		glVertex2f(mapSizeX * dotSizeX, y * dotSizeY); 
+		glColor3f(0.5f, 0.5f, 0.5f);
+		for (unsigned column = 0; column < columns; ++column)
+		{
+			glVertex2f(column * columnWidth, 0);
+			glVertex2f(column * columnWidth, rows * rowHeight);
+		}
+		for (unsigned row = 0; row < rows; ++row)
+		{
+			glVertex2f(0, row * rowHeight);
+			glVertex2f(columns * columnWidth, row * rowHeight); 
+		}
 	}
 	glEnd();
 }

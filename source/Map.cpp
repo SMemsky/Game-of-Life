@@ -1,5 +1,7 @@
 #include "Map.h"
 
+#include <cassert>
+#include <limits>
 #include <utility>
 
 Map::Map(std::size_t sizeX, std::size_t sizeY) :
@@ -7,7 +9,10 @@ Map::Map(std::size_t sizeX, std::size_t sizeY) :
 	sizeY(sizeY),
 	data(sizeX * sizeY, Empty),
 	temp(sizeX * sizeY, Empty)
-{}
+{
+	assert(static_cast<unsigned>(std::numeric_limits<int>::max()) > sizeX);
+	assert(static_cast<unsigned>(std::numeric_limits<int>::max()) > sizeY);
+}
 
 void Map::update()
 {
