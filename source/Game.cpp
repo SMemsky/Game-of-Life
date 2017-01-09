@@ -13,9 +13,9 @@ Game::Game(std::vector<std::string> const& arguments) :
 	rows(64),
 	window(),
 	map(columns, rows),
-	exiting(false),
-	paused(true),
-	grid(true)
+	shallPerformExit(false),
+	simulationIsPaused(true),
+	gridIsShown(true)
 {
 	initWindow(640, 640);
 	initGL();
@@ -26,11 +26,11 @@ Game::Game(std::vector<std::string> const& arguments) :
 void Game::run()
 {
 	sf::Clock deltaTimer;
-	while(!exiting)
+	while(!shallPerformExit)
 	{
 		sf::Time deltaTime = deltaTimer.restart();
 		eventUpdate(deltaTime.asSeconds());
-		if (!paused)
+		if (!simulationIsPaused)
 		{
 			logicUpdate(deltaTime.asSeconds());
 		}
@@ -51,12 +51,120 @@ void Game::initGL()
 {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
+	setViewport(window.getSize().x, window.getSize().y);
+}
+
+void Game::setViewport(unsigned width, unsigned height)
+{
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(0, window.getSize().x, window.getSize().y, 0, -1, 1);
+
+	glOrtho(0, width, height, 0, -1, 1);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
+
+	glViewport(0, 0, width, height);
+}
+
+void Game::handleKeyPress(sf::Keyboard::Key key)
+{
+	switch (key)
+	{
+		case sf::Keyboard::P:
+		{
+			simulationIsPaused = !simulationIsPaused;
+
+			break;
+		}
+		case sf::Keyboard::G:
+		{
+			gridIsShown = !gridIsShown;
+
+			break;
+		}
+		case sf::Keyboard::Q:
+		{
+			shallPerformExit = true;
+
+			break;
+		}
+		case sf::Keyboard::R:
+		{
+			clearMap();
+
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+}
+
+void Game::handleClick(int mouseX, int mouseY)
+{
+	if (mouseX < 0 ||
+		mouseY < 0)
+	{
+		return;
+	}
+
+	const float columnWidth = static_cast<float>(window.getSize().x) / columns;
+	const float rowHeight = static_cast<float>(window.getSize().y) / rows;
+
+	const unsigned cellX = mouseX / columnWidth;
+	const unsigned cellY = mouseY / rowHeight;
+	
+	map.set(cellX, cellY,
+		(map.get(cellX, cellY) == Map::Set) ? Map::Empty : Map::Set);
+}
+
+void Game::eventUpdate(float deltaTime)
+{
+	sf::Event event;
+	while (window.pollEvent(event))
+	{
+		switch (event.type)
+		{
+			case sf::Event::Closed:
+			{
+				shallPerformExit = true;
+
+				break;
+			}
+			case sf::Event::Resized:
+			{
+				setViewport(event.size.width, event.size.height);
+
+				break;
+			}
+			case sf::Event::KeyPressed:
+			{
+				handleKeyPress(event.key.code);
+
+				break;
+			}
+			case sf::Event::MouseButtonPressed:
+			{
+				if (event.mouseButton.button == sf::Mouse::Left)
+				{
+					handleClick(event.mouseButton.x, event.mouseButton.y);
+				}
+
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
+	}
+}
+
+void Game::logicUpdate(float deltaTime)
+{
+	map.update();
 }
 
 void Game::clearMap()
@@ -102,76 +210,6 @@ void Game::clearMap()
 	}
 }
 
-void Game::eventUpdate(float deltaTime)
-{
-	sf::Event event;
-	while (window.pollEvent(event))
-	{
-		if (event.type == sf::Event::Closed)
-		{
-			exiting = true;
-		}
-		else if (event.type == sf::Event::Resized)
-		{
-			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();
-			glOrtho(0, event.size.width, event.size.height, 0, -1, 1);
-			glMatrixMode(GL_MODELVIEW);
-			glLoadIdentity();
-			glViewport(0, 0, event.size.width, event.size.height);
-		}
-		else if (event.type == sf::Event::KeyPressed)
-		{
-			if (event.key.code == sf::Keyboard::P)
-			{
-				paused = !paused;
-			}
-			else if (event.key.code == sf::Keyboard::G)
-			{
-				grid = !grid;
-			}
-			else if (event.key.code == sf::Keyboard::Q)
-			{
-				exiting = true;
-			}
-			else if (event.key.code == sf::Keyboard::R)
-			{
-				clearMap();
-			}
-		}
-		else if (event.type == sf::Event::MouseButtonPressed)
-		{
-			if (event.mouseButton.button == sf::Mouse::Left)
-			{
-				handleClick(event.mouseButton.x, event.mouseButton.y);
-			}	
-		}
-	}
-}
-
-void Game::handleClick(int mouseX, int mouseY)
-{
-	if (mouseX < 0 ||
-		mouseY < 0)
-	{
-		return;
-	}
-
-	const float columnWidth = static_cast<float>(window.getSize().x) / columns;
-	const float rowHeight = static_cast<float>(window.getSize().y) / rows;
-
-	const unsigned cellX = mouseX / columnWidth;
-	const unsigned cellY = mouseY / rowHeight;
-	
-	map.set(cellX, cellY,
-		(map.get(cellX, cellY) == Map::Set) ? Map::Empty : Map::Set);
-}
-
-void Game::logicUpdate(float deltaTime)
-{
-	map.update();
-}
-
 void Game::draw(float deltaTime)
 {
 	const float columnWidth = static_cast<float>(window.getSize().x) / columns;
@@ -201,7 +239,7 @@ void Game::draw(float deltaTime)
 	}
 	glEnd();
 
-	if(grid)
+	if(gridIsShown)
 	{
 		drawGrid();
 	}

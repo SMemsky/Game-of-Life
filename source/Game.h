@@ -1,5 +1,6 @@
 #pragma once
 
+#include <SFML/Window/Keyboard.hpp>
 #include <SFML/Window/Window.hpp>
 
 #include "Map.h"
@@ -11,13 +12,21 @@ public:
 
 	void run();
 private:
+	// Initialization
 	void initWindow(unsigned windowWidth, unsigned windowHeight);
 	void initGL();
+
+	// Event handling
+	void setViewport(unsigned width, unsigned height);
+	void handleKeyPress(sf::Keyboard::Key key);
+	void handleClick(int mouseX, int mouseY);
+	void eventUpdate(float deltaTime);
+
+	// Logic
+	void logicUpdate(float deltaTime);
 	void clearMap();
 
-	void eventUpdate(float deltaTime);
-	void handleClick(int mouseX, int mouseY);
-	void logicUpdate(float deltaTime);
+	// Rendering
 	void draw(float deltaTime);
 	void drawGrid();
 private:
@@ -32,7 +41,7 @@ private:
 
 	Map map;
 
-	bool exiting;
-	bool paused;
-	bool grid;
+	bool shallPerformExit;
+	bool simulationIsPaused;
+	bool gridIsShown;
 };
