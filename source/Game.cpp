@@ -1,56 +1,49 @@
-#include <SFML/OpenGL.hpp>
-#include <iostream>
-using std::cout;
-using std::endl;
-
 #include "Game.h"
 
-Game::Game(int x, int y, int framerate) :
+#include <SFML/OpenGL.hpp>
+#include <SFML/Window/Event.hpp>
+
+const std::string Game::applicationName = "Conway's Game of Life";
+const unsigned Game::framerate = 600;
+
+Game::Game(std::vector<std::string> const& arguments) :
+	mapSizeX(32),
+	mapSizeY(32),
 	window(),
+	map(mapSizeX, mapSizeY),
 	exiting(false),
 	paused(true),
-	grid(true),
-	m_Framerate(framerate),
-	mapSizeX(x),
-	mapSizeY(y),
-	m_Map(nullptr)
+	grid(true)
 {
-	m_Map = new Map(x, y);
+	initWindow();
+	initGL();
+	cleanMap();
 }
 
-Game::~Game()
+void Game::run()
 {
-	
-}
-
-void Game::Start()
-{
-	InitWindow();
-	InitGL();
-	CleanMap();
-
 	sf::Clock deltaTimer;
 	while(!exiting)
 	{
 		sf::Time deltaTime = deltaTimer.restart();
-		EventUpdate(deltaTime.asSeconds());
+		eventUpdate(deltaTime.asSeconds());
 		if (!paused)
 		{
-			LogicUpdate(deltaTime.asSeconds());
+			logicUpdate(deltaTime.asSeconds());
 		}
-		Draw(deltaTime.asSeconds());
+		draw(deltaTime.asSeconds());
 	}
 
 	window.close();
 }
 
-void Game::InitWindow()
+void Game::initWindow()
 {
-	window.create(sf::VideoMode(1000, 1000), "Life2");
-	window.setFramerateLimit(m_Framerate);
+	window.create(sf::VideoMode(1000, 1000), Game::applicationName);
+	window.setFramerateLimit(framerate);
 }
 
-void Game::InitGL()
+void Game::initGL()
 {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glMatrixMode(GL_PROJECTION);
@@ -60,9 +53,9 @@ void Game::InitGL()
 	glLoadIdentity();
 }
 
-void Game::CleanMap()
+void Game::cleanMap()
 {
-	bool numb[3] = {false, true, true};
+	Map::CellState numb[3] = {Map::Empty, Map::Set, Map::Set};
 	int counterX = 0;
 	int counterY = 0;
 	for (int x = 0; x < mapSizeX; ++x)
@@ -72,7 +65,7 @@ void Game::CleanMap()
 		{
 			for (int y = 0; y < mapSizeY; ++y)
 			{
-				m_Map->Set(x, y, false);
+				map.set(x, y, Map::Empty);
 			}
 			counterX++;
 		}
@@ -80,7 +73,7 @@ void Game::CleanMap()
 		{
 			for (int y = 0; y < mapSizeY; ++y)
 			{
-				m_Map->Set(x, y, numb[counterY]);
+				map.set(x, y, numb[counterY]);
 				if (counterY == 2)
 				{
 					counterY = 0;
@@ -103,7 +96,7 @@ void Game::CleanMap()
 	}
 }
 
-void Game::EventUpdate(float deltaTime)
+void Game::eventUpdate(float deltaTime)
 {
 	sf::Event event;
 	while (window.pollEvent(event))
@@ -112,7 +105,7 @@ void Game::EventUpdate(float deltaTime)
 		{
 			exiting = true;
 		}
-		if (event.type == sf::Event::Resized)
+		else if (event.type == sf::Event::Resized)
 		{
 			glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
@@ -121,50 +114,50 @@ void Game::EventUpdate(float deltaTime)
 			glLoadIdentity();
 			glViewport(0, 0, event.size.width, event.size.height);
 		}
-		if (event.type == sf::Event::KeyPressed)
+		else if (event.type == sf::Event::KeyPressed)
 		{
 			if (event.key.code == sf::Keyboard::P)
 			{
 				paused = !paused;
 			}
-			if (event.key.code == sf::Keyboard::G)
+			else if (event.key.code == sf::Keyboard::G)
 			{
 				grid = !grid;
 			}
-			if (event.key.code == sf::Keyboard::Q)
+			else if (event.key.code == sf::Keyboard::Q)
 			{
 				exiting = true;
 			}
-			if (event.key.code == sf::Keyboard::R)
+			else if (event.key.code == sf::Keyboard::R)
 			{
-				CleanMap();
+				cleanMap();
 			}
 		}
-		if (event.type == sf::Event::MouseButtonPressed)
+		else if (event.type == sf::Event::MouseButtonPressed)
 		{
 			if (event.mouseButton.button == sf::Mouse::Left)
 			{
-				HandleClick(event.mouseButton.x, event.mouseButton.y);
+				handleClick(event.mouseButton.x, event.mouseButton.y);
 			}	
 		}
 	}
 }
 
-void Game::HandleClick(int x, int y)
+void Game::handleClick(int x, int y)
 {
-	// He-he ;D
 	int tmpX = static_cast<int>(static_cast<float>(x) / (static_cast<float>(window.getSize().x / static_cast<float>(mapSizeX))));
 	int tmpY = static_cast<int>(static_cast<float>(y) / (static_cast<float>(window.getSize().y / static_cast<float>(mapSizeY))));
 	
-	m_Map->Set(tmpX, tmpY, !m_Map->Get(tmpX, tmpY));
+	map.set(tmpX, tmpY,
+		(map.get(tmpX, tmpY) == Map::Set) ? Map::Empty : Map::Set);
 }
 
-void Game::LogicUpdate(float deltaTime)
+void Game::logicUpdate(float deltaTime)
 {
-	m_Map->Update();
+	map.update();
 }
 
-void Game::Draw(float deltaTime)
+void Game::draw(float deltaTime)
 {
 	const float dotSizeX = static_cast<float>(window.getSize().x) / static_cast<float>(mapSizeX);
 	const float dotSizeY = static_cast<float>(window.getSize().y) / static_cast<float>(mapSizeY);
@@ -177,7 +170,7 @@ void Game::Draw(float deltaTime)
 	{
 		for (int y =0; y < mapSizeY; ++y)
 		{
-			if (m_Map->Get(x, y))
+			if (map.get(x, y))
 			{
 				glVertex2f(x * dotSizeX, y * dotSizeY);
 				glVertex2f(x * dotSizeX + dotSizeX, y * dotSizeY);
@@ -190,13 +183,13 @@ void Game::Draw(float deltaTime)
 
 	if(grid)
 	{
-		DrawGrid();
+		drawGrid();
 	}
 
 	window.display();
 }
 
-void Game::DrawGrid()
+void Game::drawGrid()
 {
 	const float dotSizeX = static_cast<float>(window.getSize().x) / static_cast<float>(mapSizeX);
 	const float dotSizeY = static_cast<float>(window.getSize().y) / static_cast<float>(mapSizeY);
