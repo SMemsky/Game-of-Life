@@ -1,6 +1,6 @@
 #include "Game.h"
 
-#include <iostream>
+#include <cassert>
 
 #include <SFML/OpenGL.hpp>
 #include <SFML/Window/Event.hpp>
@@ -13,6 +13,7 @@ Game::Game(std::vector<std::string> const& arguments) :
 	rows(64),
 	window(),
 	map(columns, rows),
+	temporaryMap(columns, rows),
 	shallPerformExit(false),
 	simulationIsPaused(true),
 	gridIsShown(true)
@@ -20,7 +21,7 @@ Game::Game(std::vector<std::string> const& arguments) :
 	initWindow(640, 640);
 	initGL();
 
-	clearMap();
+	clearMap(StableSquares);
 }
 
 void Game::run()
@@ -162,55 +163,102 @@ void Game::eventUpdate(float deltaTime)
 	}
 }
 
-void Game::logicUpdate(float deltaTime)
+unsigned Game::countNeighbors(int x, int y) const
 {
-	map.update();
+	unsigned count = 0;
+
+	if (map.get(x, y + 1)) { ++count; } //Top
+	if (map.get(x, y - 1)) { ++count; } //Down
+	if (map.get(x + 1, y)) { ++count; } //Right
+	if (map.get(x - 1, y)) { ++count; } //Left
+
+	if (map.get(x + 1, y + 1)) { ++count; } //Top right
+	if (map.get(x - 1, y + 1)) { ++count; } //Top left
+	if (map.get(x + 1, y - 1)) { ++count; } //Down right
+	if (map.get(x - 1, y - 1)) { ++count; } //Down left
+
+	return count;
 }
 
-void Game::clearMap()
+void Game::logicUpdate(float deltaTime)
 {
-	Map::CellState numb[3] = {Map::Empty, Map::Set, Map::Set};
-	int counterX = 0;
-	int counterY = 0;
-	for (int x = 0; x < columns; ++x)
+	for (unsigned column = 0; column < columns; ++column)
 	{
-		counterY = 0;
-		if (counterX == 0)
+		for (unsigned row = 0; row < rows; ++row)
 		{
-			for (int y = 0; y < rows; ++y)
-			{
-				map.set(x, y, Map::Empty);
-			}
-			counterX++;
-		}
-		else
-		{
-			for (int y = 0; y < rows; ++y)
-			{
-				map.set(x, y, numb[counterY]);
-				if (counterY == 2)
-				{
-					counterY = 0;
-				}
-				else
-				{
-					counterY++;
-				}
-			}
+			unsigned neighbors = countNeighbors(column, row);
 
-			if (counterX == 2)
+			if (map.get(column, row) == Map::Set)
 			{
-				counterX = 0;
+				temporaryMap.set(column, row,
+					(neighbors == 2 || neighbors == 3) ? Map::Set : Map::Empty);
 			}
 			else
 			{
-				counterX++;
+				temporaryMap.set(column, row, (neighbors == 3) ? Map::Set : Map::Empty);
+			}
+		}
+	}
+
+	map.swap(temporaryMap);
+}
+
+void Game::setEmptyPreset()
+{
+	for (unsigned column = 0; column < columns; ++column)
+	{
+		for (unsigned row = 0; row < rows; ++row)
+		{
+			map.set(column, row, Map::Empty);
+		}
+	}
+}
+
+void Game::setSquaresPreset()
+{
+	for (unsigned column = 0; column < columns; ++column)
+	{
+		for (unsigned row = 0; row < rows; ++row)
+		{
+			if (column % 3 == 0 ||
+				row % 3 == 0)
+			{
+				map.set(column, row, Map::Empty);
+			}
+			else
+			{
+				map.set(column, row, Map::Set);
 			}
 		}
 	}
 }
 
-void Game::draw(float deltaTime)
+void Game::clearMap(MapPreset preset)
+{
+	switch (preset)
+	{
+		case Empty:
+		{
+			setEmptyPreset();
+
+			break;
+		}
+		case StableSquares:
+		{
+			setSquaresPreset();
+
+			break;
+		}
+		default:
+		{
+			assert(false);
+
+			break;
+		}
+	}
+}
+
+void Game::drawCells()
 {
 	const float columnWidth = static_cast<float>(window.getSize().x) / columns;
 	const float rowHeight = static_cast<float>(window.getSize().y) / rows;
@@ -238,13 +286,6 @@ void Game::draw(float deltaTime)
 		}
 	}
 	glEnd();
-
-	if(gridIsShown)
-	{
-		drawGrid();
-	}
-
-	window.display();
 }
 
 void Game::drawGrid()
@@ -267,4 +308,16 @@ void Game::drawGrid()
 		}
 	}
 	glEnd();
+}
+
+void Game::draw(float deltaTime)
+{
+	drawCells();
+
+	if(gridIsShown)
+	{
+		drawGrid();
+	}
+
+	window.display();
 }

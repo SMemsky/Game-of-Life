@@ -7,6 +7,11 @@
 
 class Game
 {
+	enum MapPreset
+	{
+		Empty = 1,
+		StableSquares = 2
+	};
 public:
 	Game(std::vector<std::string> const& arguments);
 
@@ -23,12 +28,16 @@ private:
 	void eventUpdate(float deltaTime);
 
 	// Logic
+	unsigned countNeighbors(int x, int y) const;
 	void logicUpdate(float deltaTime);
-	void clearMap();
+	void setEmptyPreset();
+	void setSquaresPreset();
+	void clearMap(MapPreset preset = Empty);
 
 	// Rendering
-	void draw(float deltaTime);
+	void drawCells();
 	void drawGrid();
+	void draw(float deltaTime);
 private:
 	static const std::string applicationName;
 
@@ -40,6 +49,7 @@ private:
 	sf::Window window;
 
 	Map map;
+	Map temporaryMap;
 
 	bool shallPerformExit;
 	bool simulationIsPaused;
